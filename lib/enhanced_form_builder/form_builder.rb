@@ -71,6 +71,66 @@ module EnhancedFormBuilder
     # It also automatically detects errors and validates_presence_of on fields and adds classes to the
     # field wrapper.  By default require attributes will also have a * added to the label.
     #
+
+
+    def labelled_collection_select(label, method, collections, value_method, text_method, options = {},html_options = {})
+      label_opts = options.delete(:label) || {:class => label_class}
+      wrap_class = options.delete(:wrap_class) || ''
+      wrapper_opts = options.delete(:wrap) || {:class => wrap_class }
+      note = options.delete(:note) || ''
+      error_div_opts = options.delete(:error_div) || {}
+
+      add_text_field_color!(options, method)
+
+      add_class_for_collection_select!(html_options, 'collection_select')
+
+      add_wrapper_classes!(wrapper_opts, method)
+      label = add_label_content(label, method)
+
+      add_text_field_color!(html_options, method)
+
+      wrap_field(
+        label_for(label, method, label_opts) + ' ' +
+        wrap_field(collection_select(method,collections, value_method, text_method, options, html_options ) +
+        add_note_wrapper(note), field_with_note_wrapper, {:class => field_with_note_wrapper_class}),
+        wrapper_opts.delete(:with), wrapper_opts)
+    end
+
+    def self.write_label_method_for_country_select(field)
+      src = <<-end_src
+        def labelled_#{field}(label, method, priority_countries = {},options = {}, html_options = {})
+            label_opts = options.delete(:label) || {:class => label_class}
+            wrap_class = options.delete(:wrap_class) || ''
+            wrapper_opts = options.delete(:wrap) || {:class => wrap_class }
+            note = options.delete(:note) || ''
+
+            error_div_opts = options.delete(:error_div) || {}
+
+            add_class_for_collection_select!(html_options, '#{field}')
+
+            add_wrapper_classes!(wrapper_opts, method)
+            label = add_label_content(label, method)
+
+            add_text_field_color!(options, method)
+
+            add_wrapper_classes!(wrapper_opts, method)
+            label = add_label_content(label, method)
+
+          wrap_field(
+            label_for(label, method, label_opts) + ' ' +
+            wrap_field(#{field}(method, priority_countries,options,html_options) +
+            add_note_wrapper(note), field_with_note_wrapper, {:class => field_with_note_wrapper_class}),
+            wrapper_opts.delete(:with), wrapper_opts)
+
+
+        end
+      end_src
+
+      class_eval src, __FILE__, __LINE__
+    end
+
+    %w{country_select select}.each { |field| write_label_method_for_country_select field }
+    
     def self.write_label_method(field)
       src = <<-end_src
         def labelled_#{field}(label, method, options = {})
@@ -191,7 +251,7 @@ module EnhancedFormBuilder
     end
     
     def errors?(method)
-      @object && @object.errors[method]
+      @object && !@object.errors[method].blank?
     end
     
     def add_class!(options, new_class)
